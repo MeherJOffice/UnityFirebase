@@ -89,8 +89,6 @@ pipeline {
                         export PATH="${firebasePath}"
                         firebase init hosting \\
                             --project='${projectId}' \\
-                            --force --non-interactive \\
-                            --token="$FIREBASE_TOKEN"
                     """
                         }
                     }
