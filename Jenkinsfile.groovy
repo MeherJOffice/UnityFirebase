@@ -76,7 +76,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gazoeefepjdme'
+                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-puta'
                         def projectId = rawName
                     .toLowerCase()
                     .replaceAll('[^a-z0-9]', '-')
@@ -138,7 +138,7 @@ pipeline {
         stage('Prepare HTML Privacy File') {
             steps {
                 script {
-                    def rawName = env.UNITY_PROJECT_NAME ?: 'my-gazoeefepjdme'
+                    def rawName = env.UNITY_PROJECT_NAME ?: 'my-puta'
                     def projectId = rawName
                 .toLowerCase()
                 .replaceAll('[^a-z0-9]', '-')
@@ -166,7 +166,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gazoeefepjdme'
+                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-puta'
                         def projectId = rawName
                     .toLowerCase()
                     .replaceAll('[^a-z0-9]', '-')
@@ -188,7 +188,7 @@ pipeline {
         stage('Open Hosted Page') {
             steps {
                 script {
-                    def rawName = env.UNITY_PROJECT_NAME ?: 'my-game'
+                    def rawName = env.UNITY_PROJECT_NAME ?: 'my-puta'
                     def projectId = rawName
                 .toLowerCase()
                 .replaceAll('[^a-z0-9]', '-')
