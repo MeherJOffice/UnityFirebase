@@ -83,25 +83,6 @@ pipeline {
                         // Ensure the directory exists
                         sh "mkdir -p '${projectDir}'"
 
-                        // Check if the Firebase project exists
-                        def projectExists = sh(
-                    script: """
-                        export PATH="${firebasePath}"
-                        firebase projects:list --token="$FIREBASE_TOKEN" | grep -q "^${projectId}\\b"
-                    """,
-                    returnStatus: true
-                ) == 0
-
-                        if (projectExists) {
-                            echo "✅ Firebase project '${projectId}' already exists. Using it."
-                } else {
-                            echo "🚀 Firebase project '${projectId}' not found. Creating it..."
-                            sh """
-                        export PATH="${firebasePath}"
-                        firebase projects:create '${projectId}' --token="$FIREBASE_TOKEN" --non-interactive
-                    """
-                        }
-
                         // Init hosting
                         dir(projectDir) {
                             sh """
