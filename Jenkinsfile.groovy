@@ -72,29 +72,54 @@ pipeline {
             }
         }
 
-        stage('Init Firebase Project') {
-            steps {
-                withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
-                    script {
-                        def projectId = "${env.UNITY_PROJECT_NAME}Privacy"
-                        def projectDir = "${OUTPUT_DIR}/${projectId}"
-                        def firebasePath = "/Users/meher/.npm-global/bin:$PATH"
+       stage('Init Firebase Project') {
+    steps {
+        withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
+            script {
+                def rawName = env.UNITY_PROJECT_NAME ?: "my-game"
+                def projectId = rawName
+                    .toLowerCase()
+                    .replaceAll("[^a-z0-9]", "-")
+                    .replaceAll("-+", "-")
+                    .replaceAll("(^-|-$)", "") + "-privacy"
 
-                        // Ensure the directory exists
-                        sh "mkdir -p '${projectDir}'"
+                def projectDir = "${OUTPUT_DIR}/${projectId}"
+                def firebasePath = "/Users/meher/.npm-global/bin:$PATH"
 
-                        // Init hosting
-                        dir(projectDir) {
-                            sh """
+                sh "mkdir -p '${projectDir}'"
+
+                def projectExists = sh(
+                    script: """
+                        export PATH="${firebasePath}"
+                        firebase projects:list --token="$FIREBASE_TOKEN" | grep -q "^${projectId}\\b"
+                    """,
+                    returnStatus: true
+                ) == 0
+
+                if (projectExists) {
+                    echo "✅ Firebase project '${projectId}' already exists. Using it."
+                } else {
+                    echo "🚀 Firebase project '${projectId}' not found. Creating it..."
+                    sh """
+                        export PATH="${firebasePath}"
+                        firebase projects:create '${projectId}' --token="$FIREBASE_TOKEN" --non-interactive
+                    """
+                }
+
+                dir(projectDir) {
+                    sh """
                         export PATH="${firebasePath}"
                         firebase init hosting \\
                             --project='${projectId}' \\
+                            --public='public' \\
+                            --force --non-interactive \\
+                            --token="$FIREBASE_TOKEN"
                     """
-                        }
-                    }
                 }
             }
         }
+    }
+}
 
         stage('Prepare HTML Privacy File') {
             steps {
