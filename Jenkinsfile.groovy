@@ -76,7 +76,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gazopjdme'
+                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gazoeefepjdme'
                         def projectId = rawName
                     .toLowerCase()
                     .replaceAll('[^a-z0-9]', '-')
@@ -138,27 +138,35 @@ pipeline {
         stage('Prepare HTML Privacy File') {
             steps {
                 script {
-                    def jenkinsfiles = "${env.WORKSPACE}/JenkinsFiles/HTML"
-                    def htmlTemplatePath = "${jenkinsfiles}/PrivacyPolicies.html"
-                    def outputPath = "${env.HOME}/Desktop/${env.UNITY_PROJECT_NAME}Privacy/public"
+                    def rawName = env.UNITY_PROJECT_NAME ?: 'my-gazoeefepjdme'
+                    def projectId = rawName
+                .toLowerCase()
+                .replaceAll('[^a-z0-9]', '-')
+                .replaceAll('-+', '-')
+                .replaceAll('(^-|-$)', '') + '-privacy'
+                    def outputPath = "${env.HOME}/Desktop/${projectId}/public"
 
                     sh "mkdir -p '${outputPath}'"
+
+                    def jenkinsfiles = "${env.WORKSPACE}/JenkinsFiles/HTML"
+                    def htmlTemplatePath = "${jenkinsfiles}/PrivacyPolicies.html"
 
                     def htmlContent = readFile(htmlTemplatePath)
                 .replace('{Product Name}', env.UNITY_PROJECT_NAME)
                 .replace('{email}', params.EMAIL)
 
-                    writeFile file: "${outputPath}/index.html", text: htmlContent
+                    writeFile file: "${outputPath}/PrivacyPolicies.html", text: htmlContent
 
-                    echo "✅ Generated HTML file at: ${outputPath}/index.html"
+                    echo "✅ Generated HTML at: ${outputPath}/PrivacyPolicies.html"
                 }
             }
         }
+
         stage('Deploy to Firebase') {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-game'
+                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gazoeefepjdme'
                         def projectId = rawName
                     .toLowerCase()
                     .replaceAll('[^a-z0-9]', '-')
