@@ -61,16 +61,16 @@ pipeline {
                     }
         }
 
-    stage('Check Firebase CLI') {
-    steps {
-        sh '''
+        stage('Check Firebase CLI') {
+            steps {
+                sh '''
             export PATH="$HOME/.npm-global/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
             echo "🔍 PATH = $PATH"
             which firebase || echo "❌ Firebase not found"
             firebase --version || echo "❌ Failed to get firebase version"
         '''
-    }
-}
+            }
+        }
 
         stage('Init Firebase Project') {
             steps {
@@ -78,13 +78,15 @@ pipeline {
                     script {
                         def projectId = "${env.UNITY_PROJECT_NAME}Privacy"
                         def projectDir = "${OUTPUT_DIR}/${projectId}"
+                        def firebasePath = "/Users/meher/.npm-global/bin:$PATH"
 
-                        // Make sure the output directory exists
+                        // Ensure the directory exists
                         sh "mkdir -p '${projectDir}'"
 
-                        // Check if the project already exists
+                        // Check if the Firebase project exists
                         def projectExists = sh(
                     script: """
+                        export PATH="${firebasePath}"
                         firebase projects:list --token="$FIREBASE_TOKEN" | grep -q "^${projectId}\\b"
                     """,
                     returnStatus: true
@@ -95,16 +97,18 @@ pipeline {
                 } else {
                             echo "🚀 Firebase project '${projectId}' not found. Creating it..."
                             sh """
+                        export PATH="${firebasePath}"
                         firebase projects:create '${projectId}' --token="$FIREBASE_TOKEN" --non-interactive
                     """
                         }
 
-                        // Proceed to init hosting
+                        // Init hosting
                         dir(projectDir) {
                             sh """
+                        export PATH="${firebasePath}"
                         firebase init hosting \\
                             --project='${projectId}' \\
-                            --public='.' \\
+                            --public='public' \\
                             --force --non-interactive \\
                             --token="$FIREBASE_TOKEN"
                     """
@@ -113,6 +117,7 @@ pipeline {
                 }
             }
         }
+
         stage('Prepare HTML Privacy File') {
             steps {
                 script {
@@ -134,8 +139,13 @@ pipeline {
         }
         stage('Deploy to Firebase') {
             steps {
-                dir("${OUTPUT_DIR}/${env.UNITY_PROJECT_NAME}Privacy") {
-                    sh 'firebase deploy --only hosting'
+                withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
+                    dir("${OUTPUT_DIR}/${env.UNITY_PROJECT_NAME}Privacy") {
+                        sh '''
+                    export PATH="/Users/meher/.npm-global/bin:$PATH"
+                    firebase deploy --only hosting --token="$FIREBASE_TOKEN"
+                '''
+                    }
                 }
             }
         }
