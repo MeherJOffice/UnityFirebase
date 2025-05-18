@@ -76,7 +76,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gzaame'
+                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gzzame'
                         def projectId = rawName
                     .toLowerCase()
                     .replaceAll('[^a-z0-9]', '-')
@@ -97,33 +97,43 @@ pipeline {
                 ) == 0
 
                         if (projectExists) {
-                            echo "✅ Firebase project '${projectId}' already exists. Using it."
+                            echo "✅ Firebase project '${projectId}' already exists."
                 } else {
-                            echo "🚀 Firebase project '${projectId}' not found. Creating it..."
+                            echo "🚀 Creating Firebase project '${projectId}'..."
                             sh """
                         export PATH="${firebasePath}"
                         firebase projects:create '${projectId}' --token="$FIREBASE_TOKEN" --non-interactive
                     """
                         }
 
-                        // Write firebase.json and set target project
-                        dir(projectDir) {
-                            writeFile file: "${projectDir}/firebase.json", text: """
-                    {
-                      "hosting": {
-                        "public": "public",
-                        "ignore": [
-                          "firebase.json",
-                          "**/.*",
-                          "**/node_modules/**"
-                        ]
-                      }
-                    }
-                    """
+                        // Write firebase.json
+                        writeFile file: "${projectDir}/firebase.json", text: """
+                {
+                  "hosting": {
+                    "public": "public",
+                    "ignore": [
+                      "firebase.json",
+                      "**/.*",
+                      "**/node_modules/**"
+                    ]
+                  }
+                }
+                """
 
+                        // Write .firebaserc
+                        writeFile file: "${projectDir}/.firebaserc", text: """
+                {
+                  "projects": {
+                    "default": "${projectId}"
+                  }
+                }
+                """
+
+                        // Run init hosting
+                        dir(projectDir) {
                             sh """
                         export PATH="${firebasePath}"
-                        firebase use --add --project='${projectId}' --token="$FIREBASE_TOKEN" || true
+                        firebase init hosting --token="$FIREBASE_TOKEN" --non-interactive
                     """
                         }
                     }
@@ -160,13 +170,11 @@ pipeline {
                     .replaceAll('[^a-z0-9]', '-')
                     .replaceAll('-+', '-')
                     .replaceAll('(^-|-$)', '') + '-privacy'
-
                         def projectDir = "${OUTPUT_DIR}/${projectId}"
 
                         dir(projectDir) {
                             sh """
                         export PATH="/Users/meher/.npm-global/bin:\$PATH"
-                        firebase use '${projectId}' --alias default --token="\$FIREBASE_TOKEN"
                         firebase deploy --only hosting --token="\$FIREBASE_TOKEN"
                     """
                         }
@@ -178,9 +186,19 @@ pipeline {
         stage('Open Hosted Page') {
             steps {
                 script {
-                    def url = "https://${env.UNITY_PROJECT_NAME}Privacy.web.app"
-                    echo "🌐 Opening ${url}"
-                    sh "open '${url}'"
+                    def rawName = env.UNITY_PROJECT_NAME ?: 'my-game'
+                    def projectId = rawName
+                .toLowerCase()
+                .replaceAll('[^a-z0-9]', '-')
+                .replaceAll('-+', '-')
+                .replaceAll('(^-|-$)', '') + '-privacy'
+
+                    def hostedUrl = "https://${projectId}.web.app/PrivacyPolicies.html"
+
+                    echo "🌐 Opening hosted URL: ${hostedUrl}"
+
+                    // On macOS, use open; on Linux, you might use xdg-open or skip this
+                    sh "open '${hostedUrl}' || echo '📎 Could not open browser. URL: ${hostedUrl}'"
                 }
             }
         }
