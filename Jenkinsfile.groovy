@@ -63,10 +63,15 @@ pipeline {
 
         stage('Check Firebase CLI') {
             steps {
-                sh 'which firebase'
-                sh 'firebase --version'
+                sh '''
+            export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            echo "👀 Looking for Firebase CLI..."
+            which firebase
+            firebase --version
+        '''
             }
         }
+
         stage('Init Firebase Project') {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
