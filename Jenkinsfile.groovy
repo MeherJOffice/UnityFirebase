@@ -38,9 +38,6 @@ pipeline {
             }
         }
         stage('Build Unity Project') {
-                    when {
-                        expression { params.GAME_ENGINE == 'unity' }
-                    }
                     steps {
                         script {
                             def projectPath = params.UNITY_PROJECT_PATH
