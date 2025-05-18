@@ -73,22 +73,22 @@ pipeline {
         }
 
         stage('Init Firebase Project') {
-    steps {
-        withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
-            script {
-                def rawName = env.UNITY_PROJECT_NAME ?: "my-gaame"
-                def projectId = rawName
+            steps {
+                withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
+                    script {
+                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gaame'
+                        def projectId = rawName
                     .toLowerCase()
-                    .replaceAll("[^a-z0-9]", "-")
-                    .replaceAll("-+", "-")
-                    .replaceAll('(^-|-$)', '') + "-privacy"
+                    .replaceAll('[^a-z0-9]', '-')
+                    .replaceAll('-+', '-')
+                    .replaceAll('(^-|-$)', '') + '-privacy'
 
-                def projectDir = "${OUTPUT_DIR}/${projectId}"
-                def firebasePath = "/Users/meher/.npm-global/bin:$PATH"
+                        def projectDir = "${OUTPUT_DIR}/${projectId}"
+                        def firebasePath = "/Users/meher/.npm-global/bin:$PATH"
 
-                sh "mkdir -p '${projectDir}'"
+                        sh "mkdir -p '${projectDir}'"
 
-                def projectExists = sh(
+                        def projectExists = sh(
                     script: """
                         export PATH="${firebasePath}"
                         firebase projects:list --token="$FIREBASE_TOKEN" | grep -q "^${projectId}\\b"
@@ -96,19 +96,19 @@ pipeline {
                     returnStatus: true
                 ) == 0
 
-                if (projectExists) {
-                    echo "✅ Firebase project '${projectId}' already exists. Using it."
+                        if (projectExists) {
+                            echo "✅ Firebase project '${projectId}' already exists. Using it."
                 } else {
-                    echo "🚀 Firebase project '${projectId}' not found. Creating it..."
-                    sh """
+                            echo "🚀 Firebase project '${projectId}' not found. Creating it..."
+                            sh """
                         export PATH="${firebasePath}"
                         firebase projects:create '${projectId}' --token="$FIREBASE_TOKEN" --non-interactive
                     """
-                }
+                        }
 
-                // Write firebase.json and set target project
-                dir(projectDir) {
-                    writeFile file: "${projectDir}/firebase.json", text: """
+                        // Write firebase.json and set target project
+                        dir(projectDir) {
+                            writeFile file: "${projectDir}/firebase.json", text: """
                     {
                       "hosting": {
                         "public": "public",
@@ -121,16 +121,15 @@ pipeline {
                     }
                     """
 
-                    sh """
+                            sh """
                         export PATH="${firebasePath}"
                         firebase use --add --project='${projectId}' --token="$FIREBASE_TOKEN" || true
                     """
+                        }
+                    }
                 }
             }
         }
-    }
-}
-
 
         stage('Prepare HTML Privacy File') {
             steps {
@@ -151,18 +150,30 @@ pipeline {
                 }
             }
         }
-      stage('Deploy to Firebase') {
-    steps {
-        withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
-            dir("${OUTPUT_DIR}/${env.UNITY_PROJECT_NAME.toLowerCase().replaceAll("[^a-z0-9]", "-").replaceAll("-+", "-").replaceAll('(^-|-$)', '')}-privacy") {
-                sh """
-                    export PATH="/Users/meher/.npm-global/bin:\$PATH"
-                    firebase deploy --only hosting --token="\$FIREBASE_TOKEN"
-                """
+        stage('Deploy to Firebase') {
+            steps {
+                withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
+                    script {
+                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-game'
+                        def projectId = rawName
+                    .toLowerCase()
+                    .replaceAll('[^a-z0-9]', '-')
+                    .replaceAll('-+', '-')
+                    .replaceAll('(^-|-$)', '') + '-privacy'
+
+                        def projectDir = "${OUTPUT_DIR}/${projectId}"
+
+                        dir(projectDir) {
+                            sh """
+                        export PATH="/Users/meher/.npm-global/bin:\$PATH"
+                        firebase use '${projectId}' --alias default --token="\$FIREBASE_TOKEN"
+                        firebase deploy --only hosting --token="\$FIREBASE_TOKEN"
+                    """
+                        }
+                    }
+                }
             }
         }
-    }
-}
 
         stage('Open Hosted Page') {
             steps {
