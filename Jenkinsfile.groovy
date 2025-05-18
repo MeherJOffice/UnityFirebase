@@ -76,14 +76,14 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gzzame'
+                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gazopjdme'
                         def projectId = rawName
                     .toLowerCase()
                     .replaceAll('[^a-z0-9]', '-')
                     .replaceAll('-+', '-')
                     .replaceAll('(^-|-$)', '') + '-privacy'
 
-                        def projectDir = "${OUTPUT_DIR}/${projectId}"
+                        def projectDir = "${env.HOME}/Desktop/${projectId}"
                         def firebasePath = "/Users/meher/.npm-global/bin:$PATH"
 
                         sh "mkdir -p '${projectDir}'"
@@ -129,13 +129,7 @@ pipeline {
                 }
                 """
 
-                        // Run init hosting
-                        dir(projectDir) {
-                            sh """
-                        export PATH="${firebasePath}"
-                        firebase init hosting --token="$FIREBASE_TOKEN" --non-interactive
-                    """
-                        }
+                        echo '✅ Firebase config written. Ready to deploy.'
                     }
                 }
             }
@@ -170,7 +164,7 @@ pipeline {
                     .replaceAll('[^a-z0-9]', '-')
                     .replaceAll('-+', '-')
                     .replaceAll('(^-|-$)', '') + '-privacy'
-                        def projectDir = "${OUTPUT_DIR}/${projectId}"
+                        def projectDir = "${env.HOME}/Desktop/${projectId}"
 
                         dir(projectDir) {
                             sh """
