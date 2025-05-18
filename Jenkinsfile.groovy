@@ -76,7 +76,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gaame'
+                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-gzaame'
                         def projectId = rawName
                     .toLowerCase()
                     .replaceAll('[^a-z0-9]', '-')
