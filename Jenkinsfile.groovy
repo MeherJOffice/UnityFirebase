@@ -38,6 +38,9 @@ pipeline {
             }
         }
         stage('Build Unity Project') {
+                    when {
+                        expression { params.GAME_ENGINE == 'unity' }
+                    }
                     steps {
                         script {
                             def projectPath = params.UNITY_PROJECT_PATH
@@ -58,26 +61,12 @@ pipeline {
                     }
         }
 
-        stage('Prepare HTML Privacy File') {
+        stage('Check Firebase CLI') {
             steps {
-                script {
-                    def jenkinsfiles = "${env.WORKSPACE}/JenkinsFiles/HTML"
-                    def htmlTemplatePath = "${jenkinsfiles}/PrivacyPolicies.html"
-                    def outputPath = "${env.HOME}/Desktop/${env.UNITY_PROJECT_NAME}Privacy/public"
-
-                    sh "mkdir -p '${outputPath}'"
-
-                    def htmlContent = readFile(htmlTemplatePath)
-                .replace('{Product Name}', env.UNITY_PROJECT_NAME)
-                .replace('{email}', params.EMAIL)
-
-                    writeFile file: "${outputPath}/index.html", text: htmlContent
-
-                    echo "✅ Generated HTML file at: ${outputPath}/index.html"
-                }
+                sh 'which firebase'
+                sh 'firebase --version'
             }
         }
-
         stage('Init Firebase Project') {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
@@ -119,7 +108,25 @@ pipeline {
                 }
             }
         }
+        stage('Prepare HTML Privacy File') {
+            steps {
+                script {
+                    def jenkinsfiles = "${env.WORKSPACE}/JenkinsFiles/HTML"
+                    def htmlTemplatePath = "${jenkinsfiles}/PrivacyPolicies.html"
+                    def outputPath = "${env.HOME}/Desktop/${env.UNITY_PROJECT_NAME}Privacy/public"
 
+                    sh "mkdir -p '${outputPath}'"
+
+                    def htmlContent = readFile(htmlTemplatePath)
+                .replace('{Product Name}', env.UNITY_PROJECT_NAME)
+                .replace('{email}', params.EMAIL)
+
+                    writeFile file: "${outputPath}/index.html", text: htmlContent
+
+                    echo "✅ Generated HTML file at: ${outputPath}/index.html"
+                }
+            }
+        }
         stage('Deploy to Firebase') {
             steps {
                 dir("${OUTPUT_DIR}/${env.UNITY_PROJECT_NAME}Privacy") {
