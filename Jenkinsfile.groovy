@@ -61,19 +61,16 @@ pipeline {
                     }
         }
 
-        stage('Check Firebase CLI') {
-            steps {
-                sh '''
-            echo "🧪 Effective PATH: $PATH"
-            export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-
-            echo "🧪 Rechecking PATH after export: $PATH"
-            echo "👀 Looking for Firebase CLI..."
+    stage('Check Firebase CLI') {
+    steps {
+        sh '''
+            export PATH="$HOME/.npm-global/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            echo "🔍 PATH = $PATH"
             which firebase || echo "❌ Firebase not found"
             firebase --version || echo "❌ Failed to get firebase version"
         '''
-            }
-        }
+    }
+}
 
         stage('Init Firebase Project') {
             steps {
