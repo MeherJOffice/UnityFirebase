@@ -4,6 +4,7 @@ pipeline {
     parameters {
         string(name: 'UNITY_PROJECT_PATH', defaultValue: '/Users/Shared/UnityProjects/MyGame', description: 'Path to Unity Project')
         string(name: 'EMAIL', defaultValue: 'your@email.com', description: 'Contact email for HTML file')
+        booleanParam(name: 'BUILD_UNITY', defaultValue: true, description: 'Check to build Unity project')
     }
 
     environment {
@@ -24,6 +25,9 @@ pipeline {
             }
         }
         stage('Inject BuildHelper.cs') {
+                when {
+                expression { params.BUILD_UNITY }
+                }
             steps {
                 script {
                     def jenkinsfiles = "${env.WORKSPACE}/JenkinsFiles"
@@ -38,6 +42,9 @@ pipeline {
             }
         }
         stage('Build Unity Project') {
+                when {
+                expression { params.BUILD_UNITY }
+                }
                     steps {
                         script {
                             def projectPath = params.UNITY_PROJECT_PATH
