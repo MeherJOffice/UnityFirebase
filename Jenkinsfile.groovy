@@ -38,9 +38,6 @@ pipeline {
             }
         }
         stage('Build Unity Project') {
-                    when {
-                        expression { params.GAME_ENGINE == 'unity' }
-                    }
                     steps {
                         script {
                             def projectPath = params.UNITY_PROJECT_PATH
@@ -84,7 +81,7 @@ pipeline {
                     .replaceAll('(^-|-$)', '') + '-privacy'
 
                         def projectDir = "${env.HOME}/Desktop/${projectId}"
-                        def firebasePath = "/Users/meher/.npm-global/bin:$PATH"
+                        def firebasePath = "/Users/ftouh/.npm-global/bin:$PATH"
 
                         sh "mkdir -p '${projectDir}'"
 
@@ -176,7 +173,7 @@ pipeline {
 
                         dir(projectDir) {
                             sh """
-                        export PATH="/Users/meher/.npm-global/bin:\$PATH"
+                        export PATH="/Users/ftouh/.npm-global/bin:\$PATH"
                         firebase deploy --only hosting --token="\$FIREBASE_TOKEN"
                     """
                         }
