@@ -11,6 +11,7 @@ pipeline {
     }
 
     stages {
+
         stage('Extract Product Name') {
             steps {
                 script {
@@ -23,6 +24,32 @@ pipeline {
                 }
             }
         }
+
+        stage('Discover Firebase CLI') {
+            steps {
+                script {
+                    // Update PATH for discovery (standard locations)
+                    env.PATH = "$HOME/.npm-global/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                    def firebaseFullPath = sh(
+                        script: 'which firebase || true',
+                        returnStdout: true
+                    ).trim()
+                    if (!firebaseFullPath) {
+                        error "❌ Firebase CLI not found in PATH"
+                    }
+                    def firebaseDir = firebaseFullPath.substring(0, firebaseFullPath.lastIndexOf('/'))
+                    env.DYNAMIC_PATH = "${firebaseDir}:${env.PATH}"
+                    env.FIREBASE_BIN = firebaseFullPath
+                    echo "✅ Firebase CLI: ${env.FIREBASE_BIN}"
+                    echo "✅ PATH will be: ${env.DYNAMIC_PATH}"
+                    sh """
+                        export PATH="${env.DYNAMIC_PATH}"
+                        firebase --version
+                    """
+                }
+            }
+        }
+
         stage('Inject BuildHelper.cs') {
             steps {
                 script {
@@ -37,38 +64,47 @@ pipeline {
                 }
             }
         }
+
         stage('Build Unity Project') {
-                    when {
-                        expression { params.GAME_ENGINE == 'unity' }
-                    }
-                    steps {
-                        script {
-                            def projectPath = params.UNITY_PROJECT_PATH
-                            def versionFile = "${projectPath}/ProjectSettings/ProjectVersion.txt"
+            when {
+                expression { params.GAME_ENGINE == 'unity' }
+            }
+            steps {
+                script {
+                    def projectPath = params.UNITY_PROJECT_PATH
+                    def versionFile = "${projectPath}/ProjectSettings/ProjectVersion.txt"
 
-                            def unityVersion = sh(script: "grep 'm_EditorVersion:' '${versionFile}' | awk '{print \$2}'", returnStdout: true).trim()
-                            def unityBinary = "/Applications/Unity/Hub/Editor/${unityVersion}/Unity.app/Contents/MacOS/Unity"
+                    def unityVersion = sh(script: "grep 'm_EditorVersion:' '${versionFile}' | awk '{print \$2}'", returnStdout: true).trim()
+                    def unityBinary = "/Applications/Unity/Hub/Editor/${unityVersion}/Unity.app/Contents/MacOS/Unity"
 
-                            echo "Detected Unity version: ${unityVersion}"
-                            echo "Starting Unity build using binary: ${unityBinary}"
+                    echo "Detected Unity version: ${unityVersion}"
+                    echo "Starting Unity build using binary: ${unityBinary}"
 
-                            sh """
-                '${unityBinary}' -quit -batchmode -projectPath '${projectPath}' -executeMethod BuildHelper.PerformBuild
-            """
+                    sh """
+                        '${unityBinary}' -quit -batchmode -projectPath '${projectPath}' -executeMethod BuildHelper.PerformBuild
+                    """
 
-                            echo '✅ Unity build completed successfully.'
-                        }
-                    }
+                    echo '✅ Unity build completed successfully.'
+                }
+            }
         }
 
-        stage('Check Firebase CLI') {
+        // ---- Centralize Project ID Logic Here ----
+        stage('Set Firebase Project ID') {
             steps {
-                sh '''
-            export PATH="$HOME/.npm-global/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-            echo "🔍 PATH = $PATH"
-            which firebase || echo "❌ Firebase not found"
-            firebase --version || echo "❌ Failed to get firebase version"
-        '''
+                script {
+                    def getFirebaseProjectId = { rawName ->
+                        def cleanBase = (rawName ?: 'my-puta2265')
+                            .toLowerCase()
+                            .replaceAll('[^a-z0-9]', '-')
+                            .replaceAll('-+', '-')
+                            .replaceAll('(^-|-$)', '')
+                        def today = new Date().format('ddMM')
+                        return "${cleanBase}${today}-privacy"
+                    }
+                    env.FIREBASE_PROJECT_ID = getFirebaseProjectId(env.UNITY_PROJECT_NAME)
+                    echo "🎮 Firebase Project ID: ${env.FIREBASE_PROJECT_ID}"
+                }
             }
         }
 
@@ -76,58 +112,51 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-puta2265'
-                        def projectId = rawName
-                    .toLowerCase()
-                    .replaceAll('[^a-z0-9]', '-')
-                    .replaceAll('-+', '-')
-                    .replaceAll('(^-|-$)', '') + '-privacy'
-
+                        def projectId = env.FIREBASE_PROJECT_ID
                         def projectDir = "${env.HOME}/Desktop/${projectId}"
-                        def firebasePath = "/Users/meher/.npm-global/bin:$PATH"
 
                         sh "mkdir -p '${projectDir}'"
 
                         def projectExists = sh(
-                    script: """
-                        export PATH="${firebasePath}"
-                        firebase projects:list --token="$FIREBASE_TOKEN" | grep -q "^${projectId}\\b"
-                    """,
-                    returnStatus: true
-                ) == 0
+                            script: """
+                                export PATH="${env.DYNAMIC_PATH}"
+                                firebase projects:list --token="\$FIREBASE_TOKEN" | grep -q "^${projectId}\\b"
+                            """,
+                            returnStatus: true
+                        ) == 0
 
                         if (projectExists) {
                             echo "✅ Firebase project '${projectId}' already exists."
-                } else {
+                        } else {
                             echo "🚀 Creating Firebase project '${projectId}'..."
                             sh """
-                        export PATH="${firebasePath}"
-                        firebase projects:create '${projectId}' --token="$FIREBASE_TOKEN" --non-interactive
-                    """
+                                export PATH="${env.DYNAMIC_PATH}"
+                                firebase projects:create '${projectId}' --token="\$FIREBASE_TOKEN" --non-interactive
+                            """
                         }
 
                         // Write firebase.json
                         writeFile file: "${projectDir}/firebase.json", text: """
-                {
-                  "hosting": {
-                    "public": "public",
-                    "ignore": [
-                      "firebase.json",
-                      "**/.*",
-                      "**/node_modules/**"
-                    ]
-                  }
-                }
-                """
+{
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
+"""
 
                         // Write .firebaserc
                         writeFile file: "${projectDir}/.firebaserc", text: """
-                {
-                  "projects": {
-                    "default": "${projectId}"
-                  }
-                }
-                """
+{
+  "projects": {
+    "default": "${projectId}"
+  }
+}
+"""
 
                         echo '✅ Firebase config written. Ready to deploy.'
                     }
@@ -138,12 +167,7 @@ pipeline {
         stage('Prepare HTML Privacy File') {
             steps {
                 script {
-                    def rawName = env.UNITY_PROJECT_NAME ?: 'my-puta2265'
-                    def projectId = rawName
-                .toLowerCase()
-                .replaceAll('[^a-z0-9]', '-')
-                .replaceAll('-+', '-')
-                .replaceAll('(^-|-$)', '') + '-privacy'
+                    def projectId = env.FIREBASE_PROJECT_ID
                     def outputPath = "${env.HOME}/Desktop/${projectId}/public"
 
                     sh "mkdir -p '${outputPath}'"
@@ -152,8 +176,8 @@ pipeline {
                     def htmlTemplatePath = "${jenkinsfiles}/PrivacyPolicies.html"
 
                     def htmlContent = readFile(htmlTemplatePath)
-                .replace('{Product Name}', env.UNITY_PROJECT_NAME)
-                .replace('{email}', params.EMAIL)
+                        .replace('{Product Name}', env.UNITY_PROJECT_NAME)
+                        .replace('{email}', params.EMAIL)
 
                     writeFile file: "${outputPath}/PrivacyPolicies.html", text: htmlContent
 
@@ -166,19 +190,14 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-puta2265'
-                        def projectId = rawName
-                    .toLowerCase()
-                    .replaceAll('[^a-z0-9]', '-')
-                    .replaceAll('-+', '-')
-                    .replaceAll('(^-|-$)', '') + '-privacy'
+                        def projectId = env.FIREBASE_PROJECT_ID
                         def projectDir = "${env.HOME}/Desktop/${projectId}"
 
                         dir(projectDir) {
                             sh """
-                        export PATH="/Users/meher/.npm-global/bin:\$PATH"
-                        firebase deploy --only hosting --token="\$FIREBASE_TOKEN"
-                    """
+                                export PATH="${env.DYNAMIC_PATH}"
+                                firebase deploy --only hosting --token="\$FIREBASE_TOKEN"
+                            """
                         }
                     }
                 }
@@ -188,13 +207,7 @@ pipeline {
         stage('Open Hosted Page') {
             steps {
                 script {
-                    def rawName = env.UNITY_PROJECT_NAME ?: 'my-puta2265'
-                    def projectId = rawName
-                .toLowerCase()
-                .replaceAll('[^a-z0-9]', '-')
-                .replaceAll('-+', '-')
-                .replaceAll('(^-|-$)', '') + '-privacy'
-
+                    def projectId = env.FIREBASE_PROJECT_ID
                     def hostedUrl = "https://${projectId}.web.app/PrivacyPolicies.html"
 
                     echo "🌐 Opening hosted URL: ${hostedUrl}"
