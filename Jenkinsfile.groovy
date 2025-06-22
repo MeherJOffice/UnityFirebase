@@ -21,6 +21,25 @@ pipeline {
                     ).trim()
                     env.UNITY_PROJECT_NAME = productName
                     echo "📦 Project Name: ${env.UNITY_PROJECT_NAME}"
+
+                    def baseName = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
+
+                    // Remove non-alphanumeric and make first letters uppercase for each word
+                    def cleanBase = baseName
+                    .replaceAll('[^A-Za-z0-9 ]', ' ') // keep letters/numbers/spaces only
+                    .split(' ')
+                    .collect { it.capitalize() }
+                    .join('')
+                    .replaceAll(/\s+/, '')+ '-privacy'
+
+                    // Date in ddMM format
+                    def datePart = new Date().format('ddMM')
+
+                    def projectId = "${cleanBase}${datePart}"
+
+                    env.UNITY_PROJECT_NAME = projectId
+
+                    echo "🎮 Project ID: ${projectId}"
                 }
             }
         }
@@ -80,12 +99,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
-                        def projectId = rawName
-                    .toLowerCase()
-                    .replaceAll('[^a-z0-9]', '-')
-                    .replaceAll('-+', '-')
-                    .replaceAll('(^-|-$)', '') + '-privacy'
+                        def projectId = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
 
                         def projectDir = "${env.HOME}/Desktop/${projectId}"
                         def firebasePath = "/Users/ftouh/.npm-global/bin:$PATH"
@@ -142,12 +156,8 @@ pipeline {
         stage('Prepare HTML Privacy File') {
             steps {
                 script {
-                    def rawName = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
-                    def projectId = rawName
-                .toLowerCase()
-                .replaceAll('[^a-z0-9]', '-')
-                .replaceAll('-+', '-')
-                .replaceAll('(^-|-$)', '') + '-privacy'
+                    def projectId = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
+
                     def outputPath = "${env.HOME}/Desktop/${projectId}/public"
 
                     sh "mkdir -p '${outputPath}'"
@@ -170,12 +180,8 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def rawName = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
-                        def projectId = rawName
-                    .toLowerCase()
-                    .replaceAll('[^a-z0-9]', '-')
-                    .replaceAll('-+', '-')
-                    .replaceAll('(^-|-$)', '') + '-privacy'
+                        def projectId = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
+
                         def projectDir = "${env.HOME}/Desktop/${projectId}"
 
                         dir(projectDir) {
@@ -192,12 +198,7 @@ pipeline {
         stage('Open Hosted Page') {
             steps {
                 script {
-                    def rawName = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
-                    def projectId = rawName
-                .toLowerCase()
-                .replaceAll('[^a-z0-9]', '-')
-                .replaceAll('-+', '-')
-                .replaceAll('(^-|-$)', '') + '-privacy'
+                    def projectId = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
 
                     def hostedUrl = "https://${projectId}.web.app/PrivacyPolicies.html"
 
