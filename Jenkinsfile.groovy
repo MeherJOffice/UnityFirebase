@@ -102,13 +102,13 @@ pipeline {
                         def projectId = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
 
                         def projectDir = "${env.HOME}/Desktop/${projectId}"
-                        def firebasePath = "/Users/ftouh/.npm-global/bin:$PATH"
+                        //def firebasePath = "/Users/ftouh/.npm-global/bin:$PATH"
 
                         sh "mkdir -p '${projectDir}'"
 
                         def projectExists = sh(
                     script: """
-                        export PATH="${firebasePath}"
+                        //export PATH="${firebasePath}"
                         firebase projects:list --token="$FIREBASE_TOKEN" | grep -q "^${projectId}\\b"
                     """,
                     returnStatus: true
