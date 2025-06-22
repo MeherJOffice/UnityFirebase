@@ -86,12 +86,33 @@ pipeline {
 
         stage('Check Firebase CLI') {
             steps {
-                sh '''
-            export PATH="$HOME/.npm-global/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-            echo "🔍 PATH = $PATH"
-            which firebase || echo "❌ Firebase not found"
-            firebase --version || echo "❌ Failed to get firebase version"
-        '''
+                script {
+                    // Your custom PATH setup
+                    env.PATH = "$HOME/.npm-global/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                    echo "🔍 PATH = ${env.PATH}"
+
+                    // Get the full path to the firebase executable
+                    def firebaseFullPath = sh(
+                script: 'which firebase || true',
+                returnStdout: true
+            ).trim()
+
+                    if (!firebaseFullPath) {
+                        error '❌ Firebase not found!'
+                    }
+
+                    // Get the directory containing the firebase executable
+                    def firebaseDir = firebaseFullPath.substring(0, firebaseFullPath.lastIndexOf('/'))
+
+                    // Add that directory to PATH
+                    env.PATH = "${firebaseDir}:${env.PATH}"
+
+                    echo "✅ Updated PATH: ${env.PATH}"
+                    echo "✅ firebasePath: ${firebaseFullPath}"
+
+                    // You can now use 'firebase' safely
+                    sh 'firebase --version'
+                }
             }
         }
 
@@ -99,16 +120,28 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def projectId = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
-
+                        def projectId = env.UNITY_PROJECT_NAME
                         def projectDir = "${env.HOME}/Desktop/${projectId}"
-                        //def firebasePath = "/Users/ftouh/.npm-global/bin:$PATH"
+
+                        // Find firebase in PATH (with fallback)
+                        env.PATH = "$HOME/.npm-global/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                        def firebaseFullPath = sh(
+                    script: 'which firebase || true',
+                    returnStdout: true
+                ).trim()
+                        if (!firebaseFullPath) {
+                            error '❌ Firebase CLI not found in PATH'
+                        }
+                        def firebaseDir = firebaseFullPath.substring(0, firebaseFullPath.lastIndexOf('/'))
+
+                        // Compose new PATH with firebaseDir prepended
+                        def newPath = "${firebaseDir}:${env.PATH}"
 
                         sh "mkdir -p '${projectDir}'"
 
                         def projectExists = sh(
                     script: """
-                        //export PATH="${firebasePath}"
+                        export PATH="${newPath}"
                         firebase projects:list --token="$FIREBASE_TOKEN" | grep -q "^${projectId}\\b"
                     """,
                     returnStatus: true
@@ -119,33 +152,33 @@ pipeline {
                 } else {
                             echo "🚀 Creating Firebase project '${projectId}'..."
                             sh """
-                        export PATH="${firebasePath}"
+                        export PATH="${newPath}"
                         firebase projects:create '${projectId}' --token="$FIREBASE_TOKEN" --non-interactive
                     """
                         }
 
                         // Write firebase.json
                         writeFile file: "${projectDir}/firebase.json", text: """
-                {
-                  "hosting": {
-                    "public": "public",
-                    "ignore": [
-                      "firebase.json",
-                      "**/.*",
-                      "**/node_modules/**"
-                    ]
-                  }
-                }
-                """
+{
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
+"""
 
                         // Write .firebaserc
                         writeFile file: "${projectDir}/.firebaserc", text: """
-                {
-                  "projects": {
-                    "default": "${projectId}"
-                  }
-                }
-                """
+{
+  "projects": {
+    "default": "${projectId}"
+  }
+}
+"""
 
                         echo '✅ Firebase config written. Ready to deploy.'
                     }
@@ -156,7 +189,7 @@ pipeline {
         stage('Prepare HTML Privacy File') {
             steps {
                 script {
-                    def projectId = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
+                    def projectId = env.UNITY_PROJECT_NAME
 
                     def outputPath = "${env.HOME}/Desktop/${projectId}/public"
 
@@ -180,13 +213,24 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'FIREBASE_CI_TOKEN', variable: 'FIREBASE_TOKEN')]) {
                     script {
-                        def projectId = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
-
+                        def projectId = env.UNITY_PROJECT_NAME
                         def projectDir = "${env.HOME}/Desktop/${projectId}"
+
+                        // Dynamically find the Firebase CLI directory
+                        env.PATH = "$HOME/.npm-global/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                        def firebaseFullPath = sh(
+                    script: 'which firebase || true',
+                    returnStdout: true
+                ).trim()
+                        if (!firebaseFullPath) {
+                            error '❌ Firebase CLI not found in PATH'
+                        }
+                        def firebaseDir = firebaseFullPath.substring(0, firebaseFullPath.lastIndexOf('/'))
+                        def newPath = "${firebaseDir}:${env.PATH}"
 
                         dir(projectDir) {
                             sh """
-                        export PATH="/Users/ftouh/.npm-global/bin:\$PATH"
+                        export PATH="${newPath}"
                         firebase deploy --only hosting --token="\$FIREBASE_TOKEN"
                     """
                         }
@@ -198,13 +242,12 @@ pipeline {
         stage('Open Hosted Page') {
             steps {
                 script {
-                    def projectId = env.UNITY_PROJECT_NAME ?: 'my-ftouh-putaa'
+                    def projectId = env.UNITY_PROJECT_NAME
 
                     def hostedUrl = "https://${projectId}.web.app/PrivacyPolicies.html"
 
                     echo "🌐 Opening hosted URL: ${hostedUrl}"
 
-                    // On macOS, use open; on Linux, you might use xdg-open or skip this
                     sh "open '${hostedUrl}' || echo '📎 Could not open browser. URL: ${hostedUrl}'"
                 }
             }
