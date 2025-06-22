@@ -4,6 +4,7 @@ pipeline {
     parameters {
         string(name: 'UNITY_PROJECT_PATH', defaultValue: '/Users/Shared/UnityProjects/MyGame', description: 'Path to Unity Project')
         string(name: 'EMAIL', defaultValue: 'your@email.com', description: 'Contact email for HTML file')
+        booleanParam(name: 'BUILD_UNITY', defaultValue: true, description: 'Build Unity project in this run?')
     }
 
     environment {
@@ -11,7 +12,6 @@ pipeline {
     }
 
     stages {
-
         stage('Extract Product Name') {
             steps {
                 script {
@@ -35,7 +35,7 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     if (!firebaseFullPath) {
-                        error "❌ Firebase CLI not found in PATH"
+                        error '❌ Firebase CLI not found in PATH'
                     }
                     def firebaseDir = firebaseFullPath.substring(0, firebaseFullPath.lastIndexOf('/'))
                     env.DYNAMIC_PATH = "${firebaseDir}:${env.PATH}"
@@ -51,6 +51,9 @@ pipeline {
         }
 
         stage('Inject BuildHelper.cs') {
+            when {
+                expression { params.BUILD_UNITY }
+            }
             steps {
                 script {
                     def jenkinsfiles = "${env.WORKSPACE}/JenkinsFiles"
@@ -67,7 +70,7 @@ pipeline {
 
         stage('Build Unity Project') {
             when {
-                expression { params.GAME_ENGINE == 'unity' }
+                expression { params.BUILD_UNITY }
             }
             steps {
                 script {
@@ -89,12 +92,11 @@ pipeline {
             }
         }
 
-        // ---- Centralize Project ID Logic Here ----
         stage('Set Firebase Project ID') {
             steps {
                 script {
                     def getFirebaseProjectId = { rawName ->
-                        def cleanBase = (rawName ?: 'my-puta2265')
+                        def cleanBase = (rawName ?: 'my-Game2265')
                             .toLowerCase()
                             .replaceAll('[^a-z0-9]', '-')
                             .replaceAll('-+', '-')
