@@ -4,6 +4,7 @@ pipeline {
     parameters {
         string(name: 'UNITY_PROJECT_PATH', defaultValue: '/Users/Shared/UnityProjects/MyGame', description: 'Path to Unity Project')
         string(name: 'EMAIL', defaultValue: 'your@email.com', description: 'Contact email for HTML file')
+        string(name: 'GAME_NAME', defaultValue: 'GAME NAME', description: 'The game name on the store')
         booleanParam(name: 'BUILD_UNITY', defaultValue: true, description: 'Build Unity project in this run?')
     }
 
@@ -15,10 +16,13 @@ pipeline {
         stage('Extract Product Name') {
             steps {
                 script {
-                    def productName = sh(
-                        script: "grep 'productName:' '${params.UNITY_PROJECT_PATH}/ProjectSettings/ProjectSettings.asset' | sed 's/^[^:]*: *//'",
-                        returnStdout: true
-                    ).trim()
+                    def productName = params.GAME_NAME?.trim()
+                    if (!productName) {
+                        productName = sh(
+                    script: "grep 'productName:' '${params.UNITY_PROJECT_PATH}/ProjectSettings/ProjectSettings.asset' | sed 's/^[^:]*: *//'",
+                    returnStdout: true
+                ).trim()
+                    }
                     env.UNITY_PROJECT_NAME = productName
                     echo "📦 Project Name: ${env.UNITY_PROJECT_NAME}"
                 }
